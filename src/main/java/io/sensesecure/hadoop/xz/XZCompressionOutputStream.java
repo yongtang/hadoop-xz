@@ -1,6 +1,5 @@
 package io.sensesecure.hadoop.xz;
 
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
@@ -13,14 +12,11 @@ import org.tukaani.xz.XZOutputStream;
  */
 public class XZCompressionOutputStream extends CompressionOutputStream {
 
-    private final BufferedOutputStream bufferedOut;
-
     private final XZOutputStream xzOut;
 
     public XZCompressionOutputStream(OutputStream out) throws IOException {
         super(out);
-        bufferedOut = new BufferedOutputStream(out);
-        xzOut = new XZOutputStream(bufferedOut, new LZMA2Options(6));
+        xzOut = new XZOutputStream(out, new LZMA2Options(6));
     }
 
     @Override
