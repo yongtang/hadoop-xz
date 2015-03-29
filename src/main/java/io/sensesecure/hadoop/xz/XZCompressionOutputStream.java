@@ -12,41 +12,65 @@ import org.tukaani.xz.XZOutputStream;
  */
 public class XZCompressionOutputStream extends CompressionOutputStream {
 
-    private final XZOutputStream xzOut;
+    private XZOutputStream xzOut;
+    
+    private boolean resetStateNeeded;
 
     public XZCompressionOutputStream(OutputStream out) throws IOException {
         super(out);
-        xzOut = new XZOutputStream(out, new LZMA2Options(6));
+        resetStateNeeded = true;
     }
 
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
+        if (resetStateNeeded) {
+            resetStateNeeded = false;
+            xzOut = new XZOutputStream(out, new LZMA2Options(6));
+        }
         xzOut.write(b, off, len);
     }
 
     @Override
     public void finish() throws IOException {
+        if (resetStateNeeded) {
+            resetStateNeeded = false;
+            xzOut = new XZOutputStream(out, new LZMA2Options(6));
+        }
         xzOut.finish();
+        resetStateNeeded = true;
     }
 
     @Override
     public void resetState() throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        resetStateNeeded = true;
     }
 
     @Override
     public void write(int b) throws IOException {
+        if (resetStateNeeded) {
+            resetStateNeeded = false;
+            xzOut = new XZOutputStream(out, new LZMA2Options(6));
+        }
         xzOut.write(b);
     }
 
     @Override
     public void flush() throws IOException {
+        if (resetStateNeeded) {
+            resetStateNeeded = false;
+            xzOut = new XZOutputStream(out, new LZMA2Options(6));
+        }
         xzOut.flush();
     }
 
     @Override
     public void close() throws IOException {
+        if (resetStateNeeded) {
+            resetStateNeeded = false;
+            xzOut = new XZOutputStream(out, new LZMA2Options(6));
+        }
         xzOut.flush();
         xzOut.close();
+        resetStateNeeded = false;
     }
 }

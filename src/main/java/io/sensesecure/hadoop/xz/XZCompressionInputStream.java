@@ -12,38 +12,46 @@ import org.tukaani.xz.XZInputStream;
  */
 public class XZCompressionInputStream extends CompressionInputStream {
 
-    private final BufferedInputStream bufferedIn;
+    private BufferedInputStream bufferedIn;
 
-    private final XZInputStream xzIn;
+    private XZInputStream xzIn;
+
+    private boolean resetStateNeeded;
 
     public XZCompressionInputStream(InputStream in) throws IOException {
         super(in);
+        resetStateNeeded = false;
         bufferedIn = new BufferedInputStream(super.in);
         xzIn = new XZInputStream(bufferedIn);
     }
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
+        if (resetStateNeeded) {
+            resetStateNeeded = false;
+            bufferedIn = new BufferedInputStream(super.in);
+            xzIn = new XZInputStream(bufferedIn);
+        }
         return xzIn.read(b, off, len);
     }
 
     @Override
     public void resetState() throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        resetStateNeeded = true;
     }
 
     @Override
     public int read() throws IOException {
-        return xzIn.read();
+        byte b[] = new byte[1];
+        int result = this.read(b, 0, 1);
+        return (result < 0) ? result : (b[0] & 0xff);
     }
 
     @Override
     public void close() throws IOException {
-        xzIn.close();
-    }
-
-    @Override
-    public long getPos() throws IOException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        if (!resetStateNeeded) {
+            xzIn.close();
+            resetStateNeeded = true;
+        }
     }
 }

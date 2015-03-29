@@ -218,5 +218,21 @@ public class XZCodecTest {
             result = m.get(v2);
             assertEquals("v1 and v2 hashcode not equal", result, v1.toString());
         }
+
+         // De-compress data byte-at-a-time
+        originalData.reset(data.getData(), 0, data.getLength());
+        deCompressedDataBuffer.reset(compressedDataBuffer.getData(), 0,
+                compressedDataBuffer.getLength());
+        inflateFilter
+                = codec.createInputStream(deCompressedDataBuffer);
+
+        // Check
+        originalIn = new DataInputStream(new BufferedInputStream(originalData));
+        int expected;
+        do {
+            expected = originalIn.read();
+            assertEquals("Inflated stream read by byte does not match",
+                    expected, inflateFilter.read());
+        } while (expected != -1);
     }
 }
