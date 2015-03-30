@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Hadoop-xz : XZ Codec for Apache Hadoop">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Hadoop-xz</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/yongtang/hadoop-xz">View on GitHub</a>
+
+          <h1 id="project_title">Hadoop-xz</h1>
+          <h2 id="project_tagline">XZ Codec for Apache Hadoop</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/yongtang/hadoop-xz/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/yongtang/hadoop-xz/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="hadoop-xz" class="anchor" href="#hadoop-xz" aria-hidden="true"><span class="octicon octicon-link"></span></a>Hadoop-XZ</h1>
+
+<h2>
+<a id="xz-codec-for-apache-hadoop" class="anchor" href="#xz-codec-for-apache-hadoop" aria-hidden="true"><span class="octicon octicon-link"></span></a>XZ Codec for Apache Hadoop</h2>
+
+<p>Hadoop-XZ is a project to add the XZ compression codec in Hadoop.  XZ is a lossless data compression file format that incorporates the LZMA/LZMA2 compression algorithms.  XZ offers excellent compression ratio (LZMA/LZMA2) at the expense of longer compression time compared with other compression codecs such as gzip, lzo, or bzip2.  The decompression time of XZ is much more comparable with other compression codecs.  In fact, XZ have a much better decompression time than bzip2. It is an ideal compression format when longer compression time is tolerable.  The data can be divided into independently compressed blocks with the index of the blocks contained in the XZ file, which makes XZ a natively splittable file format.</p>
+
+<p>This library is built on top of the XZ Java library provided by <a href="http://tukaani.org">http://tukaani.org</a> (XZ Utils).  Keep in mind that only the basic hadoop interface CompressionCodec is implemented at the moment.  The splittable feature of the XZ format needs further implementation of the interface SplittableCompressionCodec and it will be added to this library later.</p>
+
+<h2>
+<a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>Add the hadoop-xz POM to a project with</p>
+
+<pre><code>&lt;dependency&gt;
+  &lt;groupId&gt;io.sensesecure&lt;/groupId&gt;
+  &lt;artifactId&gt;hadoop-xz&lt;/artifactId&gt;
+  &lt;version&gt;1.0&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre>
+
+<h2>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<p>It is fairly simple to use XZ codec in hadoop related programs.  For example, the following is an Apache Spark example of line count for an XZ compressed text file:</p>
+
+<div class="highlight highlight-scala"><pre><span class="pl-k">val</span> <span class="pl-en">sparkConf</span> <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">SparkConf</span>().setAppName(<span class="pl-s"><span class="pl-pds">"</span>Simple Application<span class="pl-pds">"</span></span>)
+<span class="pl-k">val</span> <span class="pl-en">sparkContext</span> <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">SparkContext</span>(sparkConf)
+<span class="pl-k">val</span> <span class="pl-en">configuration</span> <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Configuration</span>()
+configuration.set(<span class="pl-s"><span class="pl-pds">"</span>io.compression.codecs<span class="pl-pds">"</span></span>,<span class="pl-s"><span class="pl-pds">"</span>io.sensesecure.hadoop.xz.XZCodec<span class="pl-pds">"</span></span>)
+<span class="pl-k">val</span> <span class="pl-en">rdd</span> <span class="pl-k">=</span> sparkContext.newAPIHadoopFile(<span class="pl-s"><span class="pl-pds">"</span>sample.text.xz<span class="pl-pds">"</span></span>,
+            <span class="pl-c1">classOf</span>[<span class="pl-en">TextInputFormat</span>], <span class="pl-c1">classOf</span>[<span class="pl-en">LongWritable</span>], <span class="pl-c1">classOf</span>[<span class="pl-en">Text</span>],
+            configuration)
+
+println(rdd.count())</pre></div>
+
+<h2>
+<a id="contact" class="anchor" href="#contact" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contact</h2>
+
+<p>If you have trouble with the library or have questions, check out the GitHub repository at <a href="http://github.com/yongtang/hadoop-xz">http://github.com/yongtang/hadoop-xz</a> .</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Hadoop-xz maintained by <a href="https://github.com/yongtang">yongtang</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
