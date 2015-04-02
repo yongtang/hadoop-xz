@@ -17,7 +17,7 @@ Add the hadoop-xz POM to a project with
 <dependency>
   <groupId>io.sensesecure</groupId>
   <artifactId>hadoop-xz</artifactId>
-  <version>1.0</version>
+  <version>1.1</version>
 </dependency>
 ```
 
@@ -32,7 +32,8 @@ val sparkContext = new SparkContext(sparkConf)
 val configuration = new Configuration()
 configuration.set("io.compression.codecs","io.sensesecure.hadoop.xz.XZCodec")
 val rdd = sparkContext.newAPIHadoopFile("sample.text.xz",
-            classOf[TextInputFormat], classOf[LongWritable], classOf[Text], configuration)
+            classOf[TextInputFormat], classOf[LongWritable], classOf[Text],
+            configuration)
 
 println(rdd.count())
 ```
