@@ -1,26 +1,22 @@
 package io.sensesecure.hadoop.xz;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
-import org.apache.hadoop.io.DataInputBuffer;
-import org.apache.hadoop.io.DataOutputBuffer;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.io.SequenceFile.CompressionType;
+import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
 import org.apache.hadoop.io.compress.Compressor;
 import org.apache.hadoop.io.compress.Decompressor;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.*;
+import org.junit.rules.TemporaryFolder;
+
 import static org.junit.Assert.*;
 
 /**
@@ -52,6 +48,9 @@ public class XZCodecTest {
 
     public XZCodecTest() {
     }
+    
+    @Rule
+    public final TemporaryFolder folder = new TemporaryFolder();
 
     @BeforeClass
     public static void setUpClass() {
@@ -234,5 +233,66 @@ public class XZCodecTest {
             assertEquals("Inflated stream read by byte does not match",
                     expected, inflateFilter.read());
         } while (expected != -1);
+    }
+
+    @org.junit.Test
+    public void testSequenceFileCompressionDecompression() throws Exception {
+        System.out.println("Sequence File Compression/Decompression");
+        XZCodec codec = new XZCodec();
+
+        // Generate data and sequence file
+        final DataOutputBuffer data = new DataOutputBuffer();
+        final Configuration    conf = new Configuration();
+        final File             file = new File(folder.getRoot(), "test.seq");
+        final Path             path = new Path("file:"+file.getAbsolutePath());
+        try (Writer writer = SequenceFile.createWriter(conf,
+                Writer.file(path),
+                Writer.keyClass(RandomDatum.class),
+                Writer.valueClass(RandomDatum.class),
+                Writer.compression(CompressionType.BLOCK, codec))) {
+            RandomDatum.Generator generator = new RandomDatum.Generator(seed);
+            int numSyncs = 4;
+            for (int i = 0, syncEvery = count/(numSyncs+1), nextSync = syncEvery; i < count; ++i) {
+                generator.next();
+                RandomDatum key   = generator.getKey();
+                RandomDatum value = generator.getValue();
+                key.write(data);
+                value.write(data);
+                writer.append(key, value);
+                if (i >= nextSync) {
+                    // Ensure that the codec copes with multiple blocks per file
+                    writer.sync();
+                    nextSync += syncEvery;
+                }
+            }
+        }
+
+        // Read the sequence file and check its contents
+        DataInputBuffer originalData = new DataInputBuffer();
+        originalData.reset(data.getData(), 0, data.getLength());
+        DataInputStream originalIn = new DataInputStream(new BufferedInputStream(originalData));
+        try (SequenceFile.Reader reader = new SequenceFile.Reader(conf,
+                SequenceFile.Reader.file(path))) {
+            for (int i = 0; i < count; ++i) {
+                RandomDatum k1 = new RandomDatum();
+                RandomDatum v1 = new RandomDatum();
+                k1.readFields(originalIn);
+                v1.readFields(originalIn);
+                RandomDatum k2 = new RandomDatum();
+                RandomDatum v2 = new RandomDatum();
+                reader.next(k2, v2);
+                assertTrue("original and compressed-then-decompressed-output not equal",
+                    k1.equals(k2) && v1.equals(v2));
+
+                // original and compressed-then-decompressed-output have the same hashCode
+                Map<RandomDatum, String> m = new HashMap<>();
+                m.put(k1, k1.toString());
+                m.put(v1, v1.toString());
+                String result = m.get(k2);
+                assertEquals("k1 and k2 hashcode not equal", result, k1.toString());
+                result = m.get(v2);
+                assertEquals("v1 and v2 hashcode not equal", result, v1.toString());
+            }
+        }
     }
 }
