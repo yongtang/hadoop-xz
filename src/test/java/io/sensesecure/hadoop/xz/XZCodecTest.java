@@ -7,12 +7,17 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
@@ -23,13 +28,15 @@ import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
 import org.apache.hadoop.io.compress.Compressor;
 import org.apache.hadoop.io.compress.Decompressor;
+import org.apache.hadoop.io.compress.SplitCompressionInputStream;
+import org.apache.hadoop.io.compress.SplittableCompressionCodec.READ_MODE;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+import static org.junit.Assert.*;
 
 /**
  *
@@ -56,10 +63,14 @@ public class XZCodecTest {
         (byte) 0x01, (byte) 0x00, (byte) 0x00, (byte) 0x00,
         (byte) 0x00, (byte) 0x04, (byte) 0x59, (byte) 0x5a,
         (byte) 0x0a};
+    private final byte[] uncompressedTestData = {'t', 'e', 's', 't'};
+
+    private final int numberOfStreams = 3;
+    private final long blocksize = 997;
 
     public XZCodecTest() {
     }
-    
+
     @Rule
     public final TemporaryFolder folder = new TemporaryFolder();
 
@@ -168,6 +179,17 @@ public class XZCodecTest {
     }
 
     @org.junit.Test
+    public void testDecompression() throws IOException {
+        System.out.println("Decompression");
+        InputStream in = new ByteArrayInputStream(compressedTestData);
+        XZCodec instance = new XZCodec();
+        CompressionInputStream compressed = instance.createInputStream(in, null);
+        byte[] uncompressed = new byte[uncompressedTestData.length + 1];
+        assertEquals(compressed.read(uncompressed, 0, uncompressed.length), uncompressedTestData.length);
+        assertArrayEquals(Arrays.copyOfRange(uncompressed, 0, uncompressedTestData.length), uncompressedTestData);
+    }
+
+    @org.junit.Test
     public void testCompressionDecompression() throws Exception {
         System.out.println("Compression/Decompression");
 
@@ -229,7 +251,7 @@ public class XZCodecTest {
             assertEquals("v1 and v2 hashcode not equal", result, v1.toString());
         }
 
-         // De-compress data byte-at-a-time
+        // De-compress data byte-at-a-time
         originalData.reset(data.getData(), 0, data.getLength());
         deCompressedDataBuffer.reset(compressedDataBuffer.getData(), 0,
                 compressedDataBuffer.getLength());
@@ -253,9 +275,9 @@ public class XZCodecTest {
 
         // Generate data and sequence file
         final DataOutputBuffer data = new DataOutputBuffer();
-        final Configuration    conf = new Configuration();
-        final File             file = new File(folder.getRoot(), "test.seq");
-        final Path             path = new Path("file:"+file.getAbsolutePath());
+        final Configuration conf = new Configuration();
+        final File file = new File(folder.getRoot(), "test.seq");
+        final Path path = new Path("file:" + file.getAbsolutePath());
         try (Writer writer = SequenceFile.createWriter(conf,
                 Writer.file(path),
                 Writer.keyClass(RandomDatum.class),
@@ -263,9 +285,9 @@ public class XZCodecTest {
                 Writer.compression(CompressionType.BLOCK, codec))) {
             RandomDatum.Generator generator = new RandomDatum.Generator(seed);
             int numSyncs = 4;
-            for (int i = 0, syncEvery = count/(numSyncs+1), nextSync = syncEvery; i < count; ++i) {
+            for (int i = 0, syncEvery = count / (numSyncs + 1), nextSync = syncEvery; i < count; ++i) {
                 generator.next();
-                RandomDatum key   = generator.getKey();
+                RandomDatum key = generator.getKey();
                 RandomDatum value = generator.getValue();
                 key.write(data);
                 value.write(data);
@@ -293,7 +315,7 @@ public class XZCodecTest {
                 RandomDatum v2 = new RandomDatum();
                 reader.next(k2, v2);
                 assertTrue("original and compressed-then-decompressed-output not equal",
-                    k1.equals(k2) && v1.equals(v2));
+                        k1.equals(k2) && v1.equals(v2));
 
                 // original and compressed-then-decompressed-output have the same hashCode
                 Map<RandomDatum, String> m = new HashMap<>();
@@ -306,4 +328,85 @@ public class XZCodecTest {
             }
         }
     }
+
+    @org.junit.Test
+    public void testSplittableCompressionDecompression() throws Exception {
+        System.out.println("SplittableCompression/Decompression");
+
+        Configuration conf = new Configuration();
+        conf.setLong("xz.presetlevel", 5);
+        conf.setLong("xz.blocksize", blocksize);
+        XZSplittableCodec codec = new XZSplittableCodec(conf);
+
+        Random random = new Random(seed);
+
+        byte[] datum = new byte[count];
+        for (int i = 0; i < count; i++) {
+            datum[i] = (byte) (random.nextInt() & 0xFF);
+        }
+        byte[] data = new byte[count * numberOfStreams];
+        byte[] checkData = new byte[count * numberOfStreams];
+
+        for (int streamIndex = 0; streamIndex < numberOfStreams; streamIndex++) {
+            System.arraycopy(datum, 0, data, count * streamIndex, count);
+        }
+        for (int streamIndex = 0; streamIndex < numberOfStreams; streamIndex++) {
+            for (int i = 0; i < count; i++) {
+                assertEquals(datum[i], data[count * streamIndex + i]);
+            }
+        }
+
+        DataOutputBuffer compressedDataBuffer = new DataOutputBuffer();
+        for (int streamIndex = 0; streamIndex < numberOfStreams; streamIndex++) {
+
+            // Compress data
+            CompressionOutputStream deflateFilter
+                    = codec.createOutputStream(compressedDataBuffer);
+            DataOutputStream deflateOut
+                    = new DataOutputStream(new BufferedOutputStream(deflateFilter));
+            deflateOut.write(datum, 0, datum.length);
+            deflateOut.flush();
+            deflateFilter.finish();
+        }
+
+        java.nio.file.Path tmp = Files.createTempFile("hadoop-xz-", "-tmp");
+
+        Files.write(tmp, Arrays.copyOf(compressedDataBuffer.getData(), compressedDataBuffer.size()));
+        tmp.toFile().deleteOnExit();
+
+        Configuration configuration = new Configuration();
+        FileSystem fileSystem = FileSystem.get(configuration);
+        FSDataInputStream inData = fileSystem.open(new Path(tmp.toAbsolutePath().toString()));
+
+        final int nextStep = 997;
+        long start = 0;
+        int offset = 0;
+        while (start < compressedDataBuffer.size()) {
+            long end = start + nextStep < compressedDataBuffer.size() ? start + nextStep : compressedDataBuffer.size();
+
+            // De-compress data
+            SplitCompressionInputStream inflateFilter = codec.createInputStream(inData, null, start, end, READ_MODE.BYBLOCK);
+            DataInputStream inflateIn = new DataInputStream(new BufferedInputStream(inflateFilter));
+
+            int chunk = inflateIn.read(checkData, offset, checkData.length - offset);
+            chunk = chunk == -1 ? 0 : chunk;
+            offset += chunk;
+
+            start = end;
+        }
+        assertEquals(offset, data.length);
+        assertArrayEquals(data, checkData);
+
+        // De-compress data
+        DataInputBuffer deCompressedDataBuffer = new DataInputBuffer();
+        deCompressedDataBuffer.reset(compressedDataBuffer.getData(), 0, compressedDataBuffer.getLength());
+        CompressionInputStream inflateFilter = codec.createInputStream(deCompressedDataBuffer);
+        DataInputStream inflateIn = new DataInputStream(new BufferedInputStream(inflateFilter));
+
+        // Check
+        inflateIn.readFully(checkData, 0, checkData.length);
+        assertArrayEquals(data, checkData);
+
+    }
+
 }
