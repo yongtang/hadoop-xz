@@ -2,7 +2,7 @@ Hadoop-XZ [![Build Status](https://travis-ci.org/yongtang/hadoop-xz.svg?branch=m
 =========
 
 
-XZ Codec for Apache Hadoop
+XZ (LZMA/LZMA2) Codec for Apache Hadoop
 --------------------------
 
 Hadoop-XZ is a project to add the XZ compression codec in Hadoop.  XZ is a lossless data compression file format that incorporates the LZMA/LZMA2 compression algorithms.  XZ offers excellent compression ratio (LZMA/LZMA2) at the expense of longer compression time compared with other compression codecs such as gzip, lzo, or bzip2.  The decompression time of XZ is much more comparable with other compression codecs.  In fact, XZ have a much better decompression time than bzip2. It is an ideal compression format when longer compression time is tolerable.  The data can be divided into independently compressed blocks with the index of the blocks contained in the XZ file, which makes XZ a natively splittable file format.
@@ -13,14 +13,17 @@ This library is built on top of the XZ Java library provided by http://tukaani.o
 Installation
 ------------
 Add the hadoop-xz POM to a project with
-```
+```xml
 <dependency>
   <groupId>io.sensesecure</groupId>
   <artifactId>hadoop-xz</artifactId>
-  <version>1.1</version>
+  <version>1.3</version>
 </dependency>
 ```
-
+Or add project's SBT with 
+```scala
+libraryDependencies += "io.sensesecure" % "hadoop-xz" % "1.3"
+```
 
 Usage
 -----
