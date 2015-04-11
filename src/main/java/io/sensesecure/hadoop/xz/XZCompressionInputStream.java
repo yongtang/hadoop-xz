@@ -60,11 +60,12 @@ public class XZCompressionInputStream extends CompressionInputStream {
     }
 
     /**
-     * This compression stream ({@link #xzIn}) is initialized lazily, in case the
-     * data is not available at the time of initialization.  This is necessary
-     * for the codec to be used in a {@link SequenceFile.Reader}, as it constructs
-     * the {@link XZCompressionInputStream} before putting data into its buffer.
-     * Eager initialization of {@link #xzIn} there results in an {@link EOFException}.
+     * This compression stream ({@link #xzIn}) is initialized lazily, in case
+     * the data is not available at the time of initialization. This is
+     * necessary for the codec to be used in a {@link SequenceFile.Reader}, as
+     * it constructs the {@link XZCompressionInputStream} before putting data
+     * into its buffer. Eager initialization of {@link #xzIn} there results in
+     * an {@link EOFException}.
      */
     private XZInputStream getInputStream() throws IOException {
         if (xzIn == null) {

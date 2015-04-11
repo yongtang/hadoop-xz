@@ -11,15 +11,15 @@ import org.tukaani.xz.XZOutputStream;
  * @author yongtang
  */
 public class XZCompressionOutputStream extends CompressionOutputStream {
-    
+
     private final int presetLevel;
-    
+
     private final long blockSize;
 
     private XZOutputStream xzOut;
-    
+
     private boolean resetStateNeeded;
-    
+
     private long blockOffset;
 
     public XZCompressionOutputStream(OutputStream out, int presetLevel, long blockSize) throws IOException {

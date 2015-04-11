@@ -13,6 +13,9 @@ import org.apache.hadoop.io.compress.SplittableCompressionCodec;
  */
 public class XZSplittableCodec extends XZCodec implements SplittableCompressionCodec {
 
+    public XZSplittableCodec() {
+    }
+
     public XZSplittableCodec(Configuration conf) {
         super(conf);
     }

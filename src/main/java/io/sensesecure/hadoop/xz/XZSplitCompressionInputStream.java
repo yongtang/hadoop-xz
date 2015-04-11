@@ -36,7 +36,6 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
 
     private long uncompressedEnd;
 
-
     public XZSplitCompressionInputStream(InputStream seekableIn, long start, long end, READ_MODE readMode) throws IOException {
         super(seekableIn, start, end);
 
@@ -48,7 +47,6 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
         if (!(seekableIn instanceof Seekable)) {
             throw new IOException("seekableIn must be an instance of " + Seekable.class.getName());
         }
-
 
         // There are two ways to find the stream footer:
         // 1. If each block includes the compressedSize, then the
@@ -173,52 +171,52 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
             streamHeaderLen = inData.read(streamHeaderBuf, 0, STREAM_HEADER_SIZE);
         }
 
-        this.xzSeekableIn = new XZSeekableInputStream(in, streamFinal);
+        xzSeekableIn = new XZSeekableInputStream(in, streamFinal);
 
-        this.seekableXZIn = new SeekableXZInputStream(this.xzSeekableIn);
+        seekableXZIn = new SeekableXZInputStream(xzSeekableIn);
 
         if (seekableXZIn.getBlockCount() == 0) {
-            this.adjustedStart = 0;
-            this.uncompressedStart = 0;
+            adjustedStart = 0;
+            uncompressedStart = 0;
             if (start != 0) {
-                this.adjustedStart = offsetFinal;
-                this.uncompressedStart = seekableXZIn.length();
+                adjustedStart = offsetFinal;
+                uncompressedStart = seekableXZIn.length();
             }
-            this.adjustedEnd = 0;
-            this.uncompressedEnd = 0;
+            adjustedEnd = 0;
+            uncompressedEnd = 0;
             if (end != 0) {
-                this.adjustedEnd = offsetFinal;
-                this.uncompressedEnd = seekableXZIn.length();
+                adjustedEnd = offsetFinal;
+                uncompressedEnd = seekableXZIn.length();
             }
         } else {
-            this.adjustedStart = 0;
-            this.uncompressedStart = 0;
+            adjustedStart = 0;
+            uncompressedStart = 0;
             if (start != 0) {
                 for (int i = 1; i < seekableXZIn.getBlockCount(); i++) {
                     if (start <= seekableXZIn.getBlockCompPos(i)) {
-                        this.adjustedStart = seekableXZIn.getBlockCompPos(i);
-                        this.uncompressedStart = seekableXZIn.getBlockPos(i);
+                        adjustedStart = seekableXZIn.getBlockCompPos(i);
+                        uncompressedStart = seekableXZIn.getBlockPos(i);
                         break;
                     }
                 }
-                if (this.adjustedStart == 0) {
-                    this.adjustedStart = offsetFinal;
-                    this.uncompressedStart = seekableXZIn.length();
+                if (adjustedStart == 0) {
+                    adjustedStart = offsetFinal;
+                    uncompressedStart = seekableXZIn.length();
                 }
             }
-            this.adjustedEnd = 0;
-            this.uncompressedEnd = 0;
+            adjustedEnd = 0;
+            uncompressedEnd = 0;
             if (end != 0) {
                 for (int i = 1; i < seekableXZIn.getBlockCount(); i++) {
                     if (end <= seekableXZIn.getBlockCompPos(i)) {
-                        this.adjustedEnd = seekableXZIn.getBlockCompPos(i);
-                        this.uncompressedEnd = seekableXZIn.getBlockPos(i);
+                        adjustedEnd = seekableXZIn.getBlockCompPos(i);
+                        uncompressedEnd = seekableXZIn.getBlockPos(i);
                         break;
                     }
                 }
-                if (this.adjustedEnd == 0) {
-                    this.adjustedEnd = offsetFinal;
-                    this.uncompressedEnd = seekableXZIn.length();
+                if (adjustedEnd == 0) {
+                    adjustedEnd = offsetFinal;
+                    uncompressedEnd = seekableXZIn.length();
                 }
             }
         }
@@ -242,9 +240,9 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
 
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
-        if (this.seekableXZIn.position() < this.uncompressedEnd) {
-            len = (int) ((this.seekableXZIn.position() + len < this.uncompressedEnd) ? len : this.uncompressedEnd - this.seekableXZIn.position());
-            return this.seekableXZIn.read(b, off, len);
+        if (seekableXZIn.position() < uncompressedEnd) {
+            len = (int) ((seekableXZIn.position() + len < uncompressedEnd) ? len : uncompressedEnd - seekableXZIn.position());
+            return seekableXZIn.read(b, off, len);
         }
         return -1;
     }
@@ -256,14 +254,17 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
 
     @Override
     public int read() throws IOException {
-        if (this.seekableXZIn.position() < this.uncompressedEnd) {
-            return this.seekableXZIn.read();
+        if (seekableXZIn.position() < uncompressedEnd) {
+            return seekableXZIn.read();
         }
         return -1;
     }
 
     @Override
     public long getPos() throws IOException {
-        throw new UnsupportedOperationException("getPos() is not supported yet.");
+        if (seekableXZIn.position() < uncompressedEnd) {
+            return adjustedStart;
+        }
+        return adjustedEnd;
     }
 }
