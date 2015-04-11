@@ -7,7 +7,7 @@
     <packaging>jar</packaging>
     
     <name>hadoop-xz</name>
-    <description>XZ Codec for Apache Hadoop</description>
+    <description>XZ (LZMA/LZMA2) Codec for Apache Hadoop</description>
     <url>https://github.com/yongtang/hadoop-xz</url>
     
     <scm>

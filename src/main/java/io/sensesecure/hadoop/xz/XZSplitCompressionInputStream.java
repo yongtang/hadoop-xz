@@ -31,9 +31,13 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
 
     private long adjustedEnd;
 
+    private long adjustedOffset;
+
     private long uncompressedStart;
 
     private long uncompressedEnd;
+
+    private long uncompressedBlockEnd;
 
     public XZSplitCompressionInputStream(InputStream seekableIn, long start, long end, READ_MODE readMode) throws IOException {
         super(seekableIn, start, end);
@@ -174,30 +178,33 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
         if (seekableXZIn.getBlockCount() == 0) {
             adjustedStart = 0;
             uncompressedStart = 0;
+            uncompressedBlockEnd = 0;
             if (start != 0) {
                 adjustedStart = offsetFinal;
-                uncompressedStart = seekableXZIn.length();
             }
             adjustedEnd = 0;
             uncompressedEnd = 0;
             if (end != 0) {
                 adjustedEnd = offsetFinal;
-                uncompressedEnd = seekableXZIn.length();
             }
+            adjustedOffset = adjustedStart;
         } else {
             adjustedStart = 0;
             uncompressedStart = 0;
+            uncompressedBlockEnd = seekableXZIn.getBlockPos(0) + seekableXZIn.getBlockSize(0);
             if (start != 0) {
                 for (int i = 1; i < seekableXZIn.getBlockCount(); i++) {
                     if (start <= seekableXZIn.getBlockCompPos(i)) {
                         adjustedStart = seekableXZIn.getBlockCompPos(i);
                         uncompressedStart = seekableXZIn.getBlockPos(i);
+                        uncompressedBlockEnd = seekableXZIn.getBlockPos(i) + seekableXZIn.getBlockSize(i);
                         break;
                     }
                 }
                 if (adjustedStart == 0) {
                     adjustedStart = offsetFinal;
                     uncompressedStart = seekableXZIn.length();
+                    uncompressedBlockEnd = seekableXZIn.length();
                 }
             }
             adjustedEnd = 0;
@@ -215,8 +222,9 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
                     uncompressedEnd = seekableXZIn.length();
                 }
             }
+            adjustedOffset = adjustedStart;
         }
-        seekableXZIn.seek(this.uncompressedStart);
+        seekableXZIn.seek(uncompressedStart);
     }
 
     @Override
@@ -257,9 +265,16 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
 
     @Override
     public long getPos() throws IOException {
-        if (seekableXZIn.position() < uncompressedEnd) {
-            return adjustedStart;
+        if (uncompressedBlockEnd <= seekableXZIn.position() && seekableXZIn.position() < uncompressedEnd) {
+            int blockNumber = seekableXZIn.getBlockNumber(adjustedOffset);
+            if (blockNumber + 1 == seekableXZIn.getBlockCount()) {
+                uncompressedBlockEnd = seekableXZIn.length();
+                adjustedOffset = adjustedEnd;
+            } else {
+                uncompressedBlockEnd = seekableXZIn.getBlockPos(blockNumber + 1) + seekableXZIn.getBlockSize(blockNumber + 1);
+                adjustedOffset = seekableXZIn.getBlockCompPos(blockNumber + 1);
+            }
         }
-        return adjustedEnd;
+        return adjustedOffset;
     }
 }
