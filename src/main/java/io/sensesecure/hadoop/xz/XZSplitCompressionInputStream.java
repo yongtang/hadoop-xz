@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import org.apache.hadoop.fs.Seekable;
 import org.apache.hadoop.io.compress.SplitCompressionInputStream;
-import org.apache.hadoop.io.compress.SplittableCompressionCodec;
 import org.apache.hadoop.io.compress.SplittableCompressionCodec.READ_MODE;
 import org.tukaani.xz.SeekableXZInputStream;
 import org.tukaani.xz.XZ;
@@ -41,9 +40,6 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
 
         this.readMode = readMode;
 
-        if (this.readMode != SplittableCompressionCodec.READ_MODE.BYBLOCK) {
-            throw new UnsupportedOperationException("readMode " + readMode + " is not supported");
-        }
         if (!(seekableIn instanceof Seekable)) {
             throw new IOException("seekableIn must be an instance of " + Seekable.class.getName());
         }
@@ -254,10 +250,9 @@ public class XZSplitCompressionInputStream extends SplitCompressionInputStream {
 
     @Override
     public int read() throws IOException {
-        if (seekableXZIn.position() < uncompressedEnd) {
-            return seekableXZIn.read();
-        }
-        return -1;
+        byte b[] = new byte[1];
+        int result = this.read(b, 0, 1);
+        return (result < 0) ? result : (b[0] & 0xff);
     }
 
     @Override
