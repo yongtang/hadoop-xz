@@ -336,7 +336,7 @@ public class XZCodecTest {
         Configuration conf = new Configuration();
         conf.setLong("xz.presetlevel", 5);
         conf.setLong("xz.blocksize", blocksize);
-        XZSplittableCodec codec = new XZSplittableCodec(conf);
+        XZCodec codec = new XZCodec(conf);
 
         Random random = new Random(seed);
 

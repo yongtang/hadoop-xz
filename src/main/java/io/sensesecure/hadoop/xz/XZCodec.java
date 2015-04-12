@@ -5,17 +5,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionInputStream;
 import org.apache.hadoop.io.compress.CompressionOutputStream;
 import org.apache.hadoop.io.compress.Compressor;
 import org.apache.hadoop.io.compress.Decompressor;
+import org.apache.hadoop.io.compress.SplitCompressionInputStream;
+import org.apache.hadoop.io.compress.SplittableCompressionCodec;
 
 /**
  *
  * @author yongtang
  */
-public class XZCodec implements Configurable, CompressionCodec {
+public class XZCodec implements Configurable, SplittableCompressionCodec {
 
     private static final int PRESET_LEVEL_DEFAULT = 6;
     private static final long BLOCK_SIZE_DEFAULT = Long.MAX_VALUE;
@@ -38,6 +39,11 @@ public class XZCodec implements Configurable, CompressionCodec {
     @Override
     public Configuration getConf() {
         return conf;
+    }
+
+    @Override
+    public SplitCompressionInputStream createInputStream(InputStream seekableIn, Decompressor decompressor, long start, long end, READ_MODE readMode) throws IOException {
+        return new XZSplitCompressionInputStream(seekableIn, start, end, readMode);
     }
 
     @Override
