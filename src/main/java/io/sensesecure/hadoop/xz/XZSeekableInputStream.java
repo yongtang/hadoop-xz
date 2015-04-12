@@ -36,10 +36,10 @@ public class XZSeekableInputStream extends SeekableInputStream {
 
     @Override
     public int read() throws IOException {
-        if (((Seekable) seekableIn).getPos() >= length) {
-            return -1;
+        if (((Seekable) seekableIn).getPos() <length) {
+            return seekableIn.read();
         }
-        return seekableIn.read();
+        return -1;
     }
 
 }
