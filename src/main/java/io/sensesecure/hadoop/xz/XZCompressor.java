@@ -62,7 +62,6 @@ public class XZCompressor implements Compressor {
 
     @Override
     public void reinit(Configuration conf) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        // do nothing
     }
-
 }
